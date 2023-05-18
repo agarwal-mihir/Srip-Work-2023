@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import GraphSAGEConv
 
 
-class RegressionModel(nn.Module):
+class GraphSage_RegressionModel(nn.Module):
     """
     A simple regression model using a GraphSAGE.
 

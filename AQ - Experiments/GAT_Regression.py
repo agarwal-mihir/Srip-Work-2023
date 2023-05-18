@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import GATConv
 
 
-class RegressionModel(nn.Module):
+class GAT_RegressionModel(nn.Module):
     """
     A simple regression model using a GAT.
 

@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 
 
-class RegressionModel(nn.Module):
+class GCN_RegressionModel(nn.Module):
     """
     A simple regression model using a GCN.
 
