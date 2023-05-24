@@ -21,14 +21,14 @@ class Trainer:
         self.epochs = epochs
         self.device = device
 
-    def train(self):
+    def train(self, lr):
         """
         Trains the model.
 
         """
         self.model.to(self.device)
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         for epoch in range(self.epochs):
             optimizer.zero_grad()
