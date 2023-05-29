@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 import geopandas as gpd
 import xarray as xr
+import torch
+from torch_geometric.data import Data, Dataset
 
 def get_distance(lat1, lon1, lat2, lon2):
     return hs.haversine((lat1, lon1), (lat2, lon2))
@@ -20,17 +22,17 @@ def draw_graph(G, title):
 
 
 def distance_threshold_graph(df, distance_threshold):
-    G1 = nx.Graph()
+    G = nx.Graph()
     for i in range(len(df)):
         lat1, lon1 = df.iloc[i]["latitude"], df.iloc[i]["longitude"]
         pm = df.iloc[i]["PM2.5"]
-        G1.add_node(i, latitude=lat1, longitude=lon1, pm=pm)
+        G.add_node(i, latitude=lat1, longitude=lon1, pm=pm)
         for j in range(i + 1, len(df)):
             lat2, lon2 = df.iloc[j]["latitude"], df.iloc[j]["longitude"]
             distance = get_distance(lat1, lon1, lat2, lon2)
             if distance <= distance_threshold:
-                G1.add_edge(i, j)
-    return G1
+                G.add_edge(i, j)
+    return G
 
 def nearest_neighbors_graph(df, no_of_neighbours):
     
@@ -81,3 +83,8 @@ def plot_heatmap(df, lat, lon, values):
 
 
     
+def dataset_generation(G):
+    node_features = [(G.nodes[node]['latitude'], G.nodes[node]['longitude']) for node in G.nodes]
+    edge_index = torch.tensor(list(G.edges)).t().contiguous()
+    y = torch.tensor([G.nodes[node]['pm'] for node in G.nodes], dtype=torch.float).view(-1, 1)
+    return node_features, edge_index, y
