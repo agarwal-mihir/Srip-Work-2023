@@ -58,8 +58,7 @@ def nearest_neighbors_graph(df, no_of_neighbours):
             G.add_edge(i, s)
     return G
 
-def plot_heatmap(df, lat, lon, values): 
-
+def plot_heatmap(df, lat, lon, values):
     delhi_shapefile = gpd.read_file('data/Delhi/Districts.shp')
     gdf_data = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude))
     latitudes = np.array(df['latitude'])
@@ -67,14 +66,16 @@ def plot_heatmap(df, lat, lon, values):
     g_lat = np.linspace(latitudes.min()-0.1, latitudes.max()+0.1, 30)
     g_long = np.linspace(longitudes.min()-0.1, longitudes.max()+0.1, 30)
     lat_grid, lon_grid = np.meshgrid(g_lat, g_long)
-    temp_data = gpd.GeoDataFrame(geometry = gpd.points_from_xy(lon_grid.flatten(), lat_grid.flatten()))
+    temp_data = gpd.GeoDataFrame(geometry=gpd.points_from_xy(lon_grid.flatten(), lat_grid.flatten()))
     delhi_shapefile = gpd.read_file('data/Delhi/Districts.shp')
     shapefile_extent = delhi_shapefile.total_bounds
     fig, ax = plt.subplots(figsize=(10, 10))
-    contour = ax.contourf(lon.reshape(lon_grid.shape), lat.reshape(lon_grid.shape), values.reshape(lon_grid.shape), cmap='coolwarm', levels = 200)
+    vmin = np.percentile(values, 2)
+    vmax = np.percentile(values, 98)
+    contour = ax.contourf(lon.reshape(lon_grid.shape), lat.reshape(lon_grid.shape), values.reshape(lon_grid.shape), cmap='coolwarm', levels=200, vmin=vmin, vmax=vmax)
     delhi_shapefile.plot(ax=ax, edgecolor='black', facecolor='none')
     gdf_data.plot(ax=ax, color='black', markersize=20, label='Air Stations')
-    scatter = ax.scatter(longitudes, latitudes, s = df["PM2.5"], c =  df["PM2.5"])
+    scatter = ax.scatter(longitudes, latitudes, s=df["PM2.5"], c=df["PM2.5"])
     cbar1 = plt.colorbar(contour, label='PM2.5', shrink=0.7)
     cbar2 = plt.colorbar(scatter, label='PM2.5', shrink=0.7)
     cbar1.ax.set_ylabel('PM2.5')
@@ -84,6 +85,7 @@ def plot_heatmap(df, lat, lon, values):
     plt.title('PM2.5 Predictions Heatmap')
     plt.legend()
     plt.show()
+
 
 
     
