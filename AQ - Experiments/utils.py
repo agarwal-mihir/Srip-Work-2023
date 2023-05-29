@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import LabelEncoder
 
 
 def get_distance(lat1, lon1, lat2, lon2):
@@ -30,4 +31,30 @@ def distance_threshold_graph(df, distance_threshold):
                 G1.add_edge(i, j)
     return G1
 
-# def nearest_neighbors_graph(df, neighbours):
+def nearest_neighbors_graph(df, no_of_neighbours):
+    
+    le = LabelEncoder()
+    df['station'] = le.fit_transform(df['station'])
+    station = {i: [df[df['station'] == i]['latitude'].item(), df[df['station'] == i]['longitude'].item(), df[df['station'] == i]['PM2.5'].item()] for i in df.station.unique()}
+    distances = []
+    for i in station.keys():
+        temp = []
+        for j in station.keys():
+            if i == j:
+                continue
+            temp.append([get_distance(station[i][0], station[i][1], station[j][0], station[j][1]), j])
+        temp.sort()
+        distances.append(temp)
+    G = nx.Graph()
+
+    for i, dist in enumerate(distances):
+        G.add_node(i, latitude=station[i][0], longitude=station[i][1], pm=station[i][2])
+        for j in range(no_of_neighbours):
+            s = dist[j][1]
+            G.add_node(s, latitude=station[s][0], longitude=station[s][1], pm=station[s][2])
+            G.add_edge(i, s)
+    return G
+
+
+
+    
