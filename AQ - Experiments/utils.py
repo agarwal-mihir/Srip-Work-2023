@@ -26,7 +26,8 @@ def distance_threshold_graph(df, distance_threshold):
     for i in range(len(df)):
         lat1, lon1 = df.iloc[i]["latitude"], df.iloc[i]["longitude"]
         pm = df.iloc[i]["PM2.5"]
-        G.add_node(i, latitude=lat1, longitude=lon1, pm=pm)
+        station = df.iloc[i]["station"]
+        G.add_node(i, latitude=lat1, longitude=lon1, pm=pm, station = station)
         for j in range(i + 1, len(df)):
             lat2, lon2 = df.iloc[j]["latitude"], df.iloc[j]["longitude"]
             distance = get_distance(lat1, lon1, lat2, lon2)
@@ -37,8 +38,8 @@ def distance_threshold_graph(df, distance_threshold):
 def nearest_neighbors_graph(df, no_of_neighbours):
     
     le = LabelEncoder()
-    df['station'] = le.fit_transform(df['station'])
-    station = {i: [df[df['station'] == i]['latitude'].item(), df[df['station'] == i]['longitude'].item(), df[df['station'] == i]['PM2.5'].item()] for i in df.station.unique()}
+    df['station_code'] = le.fit_transform(df['station'])
+    station = {i: [df[df['station_code'] == i]['latitude'].item(), df[df['station_code'] == i]['longitude'].item(), df[df['station_code'] == i]['PM2.5'].item(),df[df['station_code'] == i]['station'].item()] for i in df.station_code.unique()}
     distances = []
     for i in station.keys():
         temp = []
@@ -51,10 +52,10 @@ def nearest_neighbors_graph(df, no_of_neighbours):
     G = nx.Graph()
 
     for i, dist in enumerate(distances):
-        G.add_node(i, latitude=station[i][0], longitude=station[i][1], pm=station[i][2])
+        G.add_node(i, latitude=station[i][0], longitude=station[i][1], pm=station[i][2], station =station[i][3])
         for j in range(no_of_neighbours):
             s = dist[j][1]
-            G.add_node(s, latitude=station[s][0], longitude=station[s][1], pm=station[s][2])
+            G.add_node(s, latitude=station[s][0], longitude=station[s][1], pm=station[s][2],station =station[i][3])
             G.add_edge(i, s)
     return G
 
