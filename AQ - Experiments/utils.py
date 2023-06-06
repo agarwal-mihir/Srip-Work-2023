@@ -170,7 +170,7 @@ def plot_heatmap(df, latitudes, longitudes, values):
     vmax = np.percentile(values, 98)
 
     # Create contour plot
-    contour = ax.contourf(lon.reshape(lon_grid.shape), lat.reshape(lon_grid.shape), values.reshape(lon_grid.shape),
+    contour = ax.contourf(longitudes.reshape(lon_grid.shape), latitudes.reshape(lon_grid.shape), values.reshape(lon_grid.shape),
                           cmap='coolwarm', levels=200, vmin=vmin, vmax=vmax)
 
     # Plot shapefile boundaries
@@ -180,7 +180,7 @@ def plot_heatmap(df, latitudes, longitudes, values):
     gdf_data.plot(ax=ax, color='black', markersize=20, label='Air Stations')
 
     # Plot data points as colored bubbles
-    scatter = ax.scatter(longitudes, latitudes, s=df["PM2.5"], c=df["PM2.5"])
+    scatter = ax.scatter(df['longitude'], df['latitude'], s=df["PM2.5"], c=df["PM2.5"])
 
     # Add colorbars
     cbar1 = plt.colorbar(contour, label='PM2.5 - for contour plot', shrink=0.7)

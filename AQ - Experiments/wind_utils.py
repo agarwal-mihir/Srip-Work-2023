@@ -234,7 +234,12 @@ def dataset_generation(G):
     node_features = [(G.nodes[node]['latitude'], G.nodes[node]['longitude'], G.nodes[node]['ws'], G.nodes[node]['wd']) for node in G.nodes]
 
     # Create edge index tensor
-    edge_index = torch.tensor(list(G.edges)).t().contiguous()
+    undirected_edges = []
+    for edge in G.edges:
+        undirected_edges.append(edge)
+        undirected_edges.append((edge[1], edge[0]))  # Add the reverse edge
+
+    edge_index = torch.tensor(undirected_edges).t().contiguous()
 
     # Create target tensor
     y = torch.tensor([G.nodes[node]['pm'] for node in G.nodes], dtype=torch.float).view(-1, 1)
