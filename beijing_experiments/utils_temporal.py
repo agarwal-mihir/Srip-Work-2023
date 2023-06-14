@@ -69,13 +69,11 @@ def distance_threshold_graph(df, distance_threshold):
     # Iterate over each row in the dataframe
     for i in range(len(df)):
         lat1, lon1 = df.iloc[i]["latitude"], df.iloc[i]["longitude"]
-        ws = df.iloc[i]['WS']
-        wd = df.iloc[i]['WD']
         pm = df.iloc[i]["PM2.5"]
         station = df.iloc[i]["station"]
         
         # Add a node to the graph with latitude, longitude, PM2.5, and station attributes
-        G.add_node(i, latitude=lat1, longitude=lon1, pm=pm, station=station, ws = ws, wd = wd)
+        G.add_node(i, latitude=lat1, longitude=lon1, pm=pm, station=station)
         
         # Iterate over the remaining rows to check for edges
         for j in range(i + 1, len(df)):
@@ -102,12 +100,17 @@ def nearest_neighbors_graph(df, no_of_neighbours):
     Returns:
     - G (NetworkX graph): The resulting graph.
     """
-    le = LabelEncoder()
-    df['station_code'] = le.fit_transform(df['station_id'])
-    station = {i: [df[df['station_code'] == i]['latitude'].item(), df[df['station_code'] == i]['longitude'].item(),
-                   df[df['station_code'] == i]['PM25_Concentration'].item(), df[df['station_code'] == i]['station_id'].item(),
-                   df[df['station_code'] == i]['WS'].item(), df[df['station_code'] == i]['WD'].item()]
-               for i in df.station_code.unique()}
+
+    df['station_code'] = df['station_id']
+    station = {i: [df[df['station_code'] == i]['latitude'].item(),
+               df[df['station_code'] == i]['longitude'].item(),
+               df[df['station_code'] == i]['PM25_Concentration'].item(),
+               df[df['station_code'] == i]['station_id'].item(),
+               df[df['station_code'] == i]['temperature'].item(),
+               df[df['station_code'] == i]['humidity'].item(),
+               df[df['station_code'] == i]['wind_speed'].item(),
+               df[df['station_code'] == i]['wind_direction'].item()]
+           for i in df.station_code.unique()}
     distances = []
     
     # Calculate distances between stations
@@ -122,14 +125,16 @@ def nearest_neighbors_graph(df, no_of_neighbours):
     
     # Create an empty graph
     G = nx.Graph()
-    print(distances)
-    print(distances[0][0])
+
     # Add nodes and edges based on nearest neighbors
     for i, dist in enumerate(distances):
-        G.add_node(i, latitude=station[i][0], longitude=station[i][1], pm=station[i][2], station=station[i][3], ws = station[i][4], wd = station[i][5])
+        G.add_node(i, latitude=station[i][0], longitude=station[i][1], pm=station[i][2], station=station[i][3],
+           temperature=station[i][4], humidity=station[i][5], wind_speed=station[i][6], wind_direction=station[i][7])
+
         for j in range(no_of_neighbours):
             s = dist[j][1]
-            G.add_node(s, latitude=station[s][0], longitude=station[s][1], pm=station[s][2], station=station[s][3], ws = station[i][4], wd = station[i][5])
+            G.add_node(s, latitude=station[s][0], longitude=station[s][1], pm=station[s][2], station=station[s][3],
+           temperature=station[s][4], humidity=station[s][5], wind_speed=station[s][6], wind_direction=station[s][7])
             G.add_edge(i, s)
     
     return G
@@ -185,21 +190,7 @@ def plot_heatmap(df, latitudes, longitudes, values):
 
     # Plot data points as colored bubbles
     scatter = ax.scatter(df['longitude'], df['latitude'], s=df["PM2.5"], c=df["PM2.5"])
-    
-    df['wind_direction'] = 270 - df['WD']
-    u = np.cos(np.radians(df['wind_direction']))
-    v = np.sin(np.radians(df['wind_direction']))
-    u1 = df['WS'] * np.cos(np.radians(df['wind_direction']))
-    v1 = df['WS'] * np.sin(np.radians(df['wind_direction']))
-    u1_ = u1.sum()
-    v1_ = v1.sum()
-    
-#     ax.text(0.02, 0.02, "Net Wind")
-      
-    quiver = ax.quiver(df['longitude'], df['latitude'], u, v, alpha = 0.5, label = 'Wind')
-    overall_quiver = ax.quiver(76.9, 28.85, u1_, v1_)
-    plt.text(76.87, 28.88, "Overall Wind")
-    
+
     # Add colorbars
     cbar1 = plt.colorbar(contour, label='PM2.5 - for contour plot', shrink=0.7)
     cbar2 = plt.colorbar(scatter, label='PM2.5 - for bubble plot', shrink=0.7)
@@ -232,7 +223,7 @@ def dataset_generation(G):
     """
 
     # Extract node features from graph
-    node_features = [(G.nodes[node]['latitude'], G.nodes[node]['longitude'], G.nodes[node]['ws'], G.nodes[node]['wd']) for node in G.nodes]
+    node_features = [(G.nodes[node]['latitude'], G.nodes[node]['longitude']) for node in G.nodes]
 
     # Create edge index tensor
     undirected_edges = []
