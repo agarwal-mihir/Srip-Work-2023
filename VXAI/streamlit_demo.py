@@ -71,6 +71,14 @@ class MLP(nn.Module):
         output_mean = self.layers[-1](hidden).squeeze()
         return output_mean
 
+def plot_multiple_predictions(x_test, y_preds):
+    def add_multiple_predictions(ax):
+        for idx in range(len(y_preds)):
+            ax.plot(x_test, y_preds[idx], '-', linewidth=3)
+
+    return plot_generic(add_multiple_predictions)
+
+
 def train(net, train_data):
     x_train, y_train = train_data
     optimizer = torch.optim.Adam(params=net.parameters(), lr=1e-3)
@@ -92,6 +100,16 @@ def plot_predictions(x_test, y_preds, coef_1=0.3, coef_2=0.02):
     fig, ax = plot_generic(add_predictions, coef_1, coef_2)
     return fig, ax
 
+def plot_uncertainty_bands(x_test, y_preds):
+    y_preds = np.array(y_preds)
+    y_mean = y_preds.mean(axis=0)
+    y_std = y_preds.std(axis=0)
+
+    def add_uncertainty(ax):
+        ax.plot(x_test, y_mean, '-', linewidth=3, color="#408765", label="predictive mean")
+        ax.fill_between(x_test.ravel(), y_mean - 2 * y_std, y_mean + 2 * y_std, alpha=0.6, color='#86cfac', zorder=5)
+
+    return plot_generic(add_uncertainty)
 def main():
     st.title("Simple MLP Regression with Streamlit")
     coef_1 = st.slider("Coefficient 1", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
@@ -117,6 +135,29 @@ def main():
     st.header("Prediction Visualization")
     fig, ax = plot_predictions(x_test, y_preds,coef_1, coef_2)
     st.pyplot(fig)
+
+    ensemble_size = 5
+    ensemble = [MLP(hidden_dim=30, n_hidden_layers=2) for _ in range(ensemble_size)]
+    for net in ensemble:
+        train(net, (x_train, y_train))
+    y_preds = [np.array(net(x_test).clone().detach().numpy()) for net in ensemble]
+    fig, ax = plot_multiple_predictions(x_test, y_preds)
+    st.pyplot(fig)
+    fig, ax = plot_uncertainty_bands(x_test, y_preds)
+    st.pyplot(fig)
+
+    net_dropout = MLP(hidden_dim=30, n_hidden_layers=2, use_dropout=True)
+    net_dropout = train(net_dropout, (x_train, y_train))
+    n_dropout_samples = 100
+
+    # compute predictions, resampling dropout mask for each forward pass
+    y_preds = [net_dropout(x_test).clone().detach().numpy() for _ in range(n_dropout_samples)]
+    y_preds = np.array(y_preds)
+    fig, ax = plot_multiple_predictions(x_test, y_preds)
+    st.pyplot(fig)
+    fig, ax = plot_uncertainty_bands(x_test, y_preds)
+    st.pyplot(fig)
+    
 
 if __name__ == "__main__":
     main()
