@@ -8,6 +8,7 @@ from tqdm.auto import trange, tqdm
 from utils import get_simple_data_train, display_equation, train
 from utils_plot import plot_generic, plot_multiple_predictions, plot_predictions, plot_uncertainty_bands
 from model import MLP
+from torchviz import make_dot
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -49,7 +50,10 @@ def main():
     x_test = torch.linspace(-.5, 1.5, 3000)[:, None] 
     net = MLP(hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers)
     net = train(net, (x_train, y_train), epochs=epochs)
+    graph = make_dot(y, params=dict(net.named_parameters()))
 
+# Display the graph using streamlit
+    st.graphviz_chart(graph)
     # Make predictions and plot the results
     y_preds = net(x_test).clone().detach().numpy()
 
