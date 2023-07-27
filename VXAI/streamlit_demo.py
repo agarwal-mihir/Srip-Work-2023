@@ -43,9 +43,12 @@ def main():
     st.pyplot(fig)
 
     # Train the model
+    hidden_dim = st.slider("Hidden Dimension", min_value=1, max_value=100, value=30, step=1)
+    n_hidden_layers = st.slider("Number of Hidden Layers", min_value=1, max_value=10, value=2, step=1)
+    epochs = st.slider("Number of Epochs", min_value=1, max_value=10000, value=1000, step=1)
     x_test = torch.linspace(-.5, 1.5, 3000)[:, None] 
-    net = MLP(hidden_dim=30, n_hidden_layers=2)
-    net = train(net, (x_train, y_train))
+    net = MLP(hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers)
+    net = train(net, (x_train, y_train), epochs=epochs)
 
     # Make predictions and plot the results
     y_preds = net(x_test).clone().detach().numpy()
@@ -56,32 +59,32 @@ def main():
     fig, ax = plot_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
     st.pyplot(fig)
 
-    ensemble_size = 5
-    ensemble = [MLP(hidden_dim=30, n_hidden_layers=2) for _ in range(ensemble_size)]
-    for net in ensemble:
-        train(net, (x_train, y_train))
-    y_preds = [np.array(net(x_test).clone().detach().numpy()) for net in ensemble]
-    fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    st.pyplot(fig)
-    fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    st.pyplot(fig)
+    # ensemble_size = 5
+    # ensemble = [MLP(hidden_dim=30, n_hidden_layers=2) for _ in range(ensemble_size)]
+    # for net in ensemble:
+    #     train(net, (x_train, y_train))
+    # y_preds = [np.array(net(x_test).clone().detach().numpy()) for net in ensemble]
+    # fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
+    # st.pyplot(fig)
+    # fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
+    # st.pyplot(fig)
 
-    net_dropout = MLP(hidden_dim=30, n_hidden_layers=2, use_dropout=True)
-    net_dropout = train(net_dropout, (x_train, y_train))
-    n_dropout_samples = 100
+    # net_dropout = MLP(hidden_dim=30, n_hidden_layers=2, use_dropout=True)
+    # net_dropout = train(net_dropout, (x_train, y_train))
+    # n_dropout_samples = 100
 
-    # compute predictions, resampling dropout mask for each forward pass
-    y_preds = [net_dropout(x_test).clone().detach().numpy() for _ in range(n_dropout_samples)]
-    y_preds = np.array(y_preds)
-    fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    st.pyplot(fig)
-    fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    st.pyplot(fig)
+    # # compute predictions, resampling dropout mask for each forward pass
+    # y_preds = [net_dropout(x_test).clone().detach().numpy() for _ in range(n_dropout_samples)]
+    # y_preds = np.array(y_preds)
+    # fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
+    # st.pyplot(fig)
+    # fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
+    # st.pyplot(fig)
     x_test = torch.linspace(-.5, 1.5, 1000)[:, None]
     y_preds = net(x_test).clone().detach().numpy()
     y_cal_preds = net(x_cal).clone().detach()
     resid = torch.abs(y_cal - y_cal_preds).numpy()
-    alpha = 0.1
+    alpha = st.slider("Select a value for alpha:", min_value=0.001, max_value=1.0, step=0.001, value=0.03)
     n = len(x_cal)
     q_val = np.ceil((1 - alpha) * (n + 1)) / n
     q = np.quantile(resid, q_val, method="higher")

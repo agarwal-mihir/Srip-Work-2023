@@ -23,12 +23,12 @@ def display_equation(coef_1, coef_2):
     st.header("Custom Function")
     st.latex(equation)
 
-def train(net, train_data):
+def train(net, train_data, epochs=1000):
     x_train, y_train = train_data
     optimizer = torch.optim.Adam(params=net.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
 
-    progress_bar = trange(3000)
+    progress_bar = trange(epochs)
     for _ in progress_bar:
         optimizer.zero_grad()
         loss = criterion(y_train, net(x_train))
