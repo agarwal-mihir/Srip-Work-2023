@@ -180,7 +180,7 @@ def main():
     
     st.write("Example: ")
     
-    test_img_index = st.slider("Choose Image:", min_value=0, max_value=1000, step=1, value=500)
+    test_img_index = st.slider("Choose Image:", min_value=0, max_value=1000, step=1, value=628)
     sample_test_img = X_test[test_img_index]
     fig, ax, pred, pred_str = get_test_preds_and_smx(X_test, test_img_index, pred_sets, net, q, alpha)
     st.pyplot(fig)
