@@ -16,10 +16,10 @@ def get_data():
     X_calib = np.load("cifar/npy/cifar_x_calib.npy")
     y_calib = np.load("cifar/npy/cifar_y_calib.npy")
     
-    X_test = torch.tensor(X_test, dtype = torch.float32)
+    X_test = torch.tensor(X_test, dtype = torch.float32) / 255.0
     y_test = torch.tensor(y_test, dtype = torch.long)
     
-    X_calib = torch.tensor(X_calib, dtype = torch.float32)
+    X_calib = torch.tensor(X_calib, dtype = torch.float32) / 255.0
     y_calib = torch.tensor(y_calib, dtype = torch.long)
     
     return X_test, y_test, X_calib, y_calib
@@ -44,8 +44,12 @@ class CNN(nn.Module):
         x = self.fc2(x)
         return x
 
-def get_test_accuracy(X_test, y_test, net):    
-    X_test = X_test/255.0
+def class_label(i):
+    labels = {0:"airplane", 1:"automobile", 2:"bird", 3:"cat", 4:"deer", 5:"dog", 6:"frog", 7:"horse", 8:"ship", 9:"truck"}
+    
+    return labels[i]
+
+def get_test_accuracy(X_test, y_test, net):
     test_dataset = torch.utils.data.TensorDataset(X_test, y_test.squeeze().long())
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, shuffle=False)  # No need to shuffle for testing
     
@@ -102,7 +106,7 @@ def plot_scores_quantile(scores, quantile, alpha):
     ax.hist(scores, cumulative = True, alpha = 0.2, label = "Cumulative")
     
     q_label = str(("{:.2f}")).format(1-alpha) + " Quantile"
-    ax.axvline(x = quantile, label = q_label)
+    ax.axvline(x = quantile, label = q_label, color = 'red')
     
     plt.legend(loc = 2)
     return fig, ax
@@ -115,9 +119,10 @@ def get_pred_sets(net, test_data, q, alpha):
     return pred_sets
 
 def get_pred_str(pred):
-    pred_str = ""
+    pred_str = "{"
     for i in pred:
-        pred_str += str(i) + ' '
+        pred_str += class_label(i) + ' '
+    pred_str += "}"
     return pred_str
 
 def get_test_preds_and_smx(X_test, index, pred_sets, net, q, alpha):
@@ -125,11 +130,13 @@ def get_test_preds_and_smx(X_test, index, pred_sets, net, q, alpha):
     sample_smx = test_smx[index]
     
     fig, axs = plt.subplots(1, 2, figsize=(12, 3))
-    axs[0].imshow(X_test[index].numpy().astype('uint8'))
+    axs[0].imshow(X_test[index].numpy())
     axs[0].set_title("Sample test image")
     
     axs[1].bar(range(10), sample_smx, label = "class scores")
-    axs[1].axhline(y = q, label = 'threshold', color = "red", linestyle='dashed')
+    axs[1].set_xticks(range(10))
+    axs[1].set_xticklabels([class_label(i) for i in range(10)], rotation = 90)
+    axs[1].axhline(y = 1-q, label = 'threshold', color = "red", linestyle='dashed')
     axs[1].legend(loc = 1)
     axs[1].set_title("Class Scores")
     
@@ -160,7 +167,7 @@ def main():
     st.latex(r"\left\lceil \frac{(n+1)(1-\alpha)}{n} \right\rceil")
 
     scores = get_scores(net, (X_calib, y_calib))
-    alpha = st.slider("Select a value for alpha:", min_value=0.001, max_value=1.0, step=0.001, value=0.03)
+    alpha = st.slider("Select a value for alpha:", min_value=0.001, max_value=1.0, step=0.001, value=0.04)
     q = quantile(scores, alpha)
     fig, ax = plot_scores_quantile(scores, q, alpha)
     st.pyplot(fig)
