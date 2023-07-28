@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-from keras.datasets import mnist
+import torchvision.datasets as datasets
+import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 from tqdm.auto import trange, tqdm
 
@@ -11,21 +12,26 @@ torch.manual_seed(42)
 np.random.seed(42)
 
 def get_data():
-    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
+    ])
 
-    X_test_unscaled = X_test
-    X_train = torch.tensor(X_train, dtype=torch.float32) / 255.0
-    y_train = torch.tensor(y_train, dtype=torch.long)
-    X_test = torch.tensor(X_test, dtype = torch.float32) / 255.0
-    y_test = torch.tensor(y_test, dtype=torch.long)
+    train_dataset = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
+
+    X_train, y_train = train_dataset.data.float() / 255.0, train_dataset.targets
+    X_test, y_test = test_dataset.data.float() / 255.0, test_dataset.targets
 
     X_train = X_train.view(-1, 28*28)
     X_test = X_test.view(-1, 28*28)
 
     X_calib, X_train = X_train[50000:], X_train[:50000]
     y_calib, y_train = y_train[50000:], y_train[:50000]
-    
-    return X_train, y_train, X_test, y_test, X_calib, y_calib, X_test_unscaled
+
+    return X_train, y_train, X_test, y_test, X_calib, y_calib, X_test.numpy()
+
+
 
 
 class MLP(nn.Module):

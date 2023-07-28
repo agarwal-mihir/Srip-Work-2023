@@ -5,10 +5,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm.auto import trange, tqdm
-from utils import get_simple_data_train, display_equation, train
-from utils_plot import plot_generic, plot_multiple_predictions, plot_predictions, plot_uncertainty_bands
-from model import MLP
-from torchviz import make_dot
+from utils import get_simple_data_train, display_equation, train, get_data, get_test_preds_and_smx, get_scores, quantile, get_pred_sets, mean_set_size, get_test_accuracy
+from utils_plot import plot_generic, plot_multiple_predictions, plot_predictions, plot_uncertainty_bands, plot_scores_quantile
+from model import MLP, CNN
 
 torch.manual_seed(42)
 np.random.seed(42)
@@ -26,21 +25,15 @@ def main():
 
     st.write("The significance of conformal prediction lies in its ability to provide a confidence level (alpha) for the predictions, allowing users to understand the reliability of the model's output. This is especially crucial in critical applications where understanding the uncertainty is essential.")
 
-    
-    coef_1 = st.slider("Coefficient of function", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
-    coef_2 = st.slider("Coefficient for noise", min_value=0.0, max_value=1.0, value=0.02, step=0.01)
-    x, y = get_simple_data_train(coef_1, coef_2)
-    cal_idx = np.arange(len(x), step=1/0.2, dtype=np.int64)
-    # cal_idx = np.random.choice(len(x), size=int(len(x) * 0.2), replace=False) # random selection
-    mask = np.zeros(len(x), dtype=bool)
-    mask[cal_idx] = True
-    x_cal, y_cal = x[mask], y[mask]
-    x_train, y_train = x[~mask], y[~mask]
     st.title("Custom Function Visualization")
+    coef_1 = st.slider("Coefficient of sine and cos function", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
+    coef_2 = st.slider("Coefficient for noise", min_value=0.0, max_value=1.0, value=0.02, step=0.01)
     display_equation(coef_1, coef_2)
+    x_train, y_train, x_cal, y_cal = get_simple_data_train(coef_1, coef_2)
+    
 
     st.header("Data Visualization")
-    fig, ax = plot_generic(x_train, y_train,coef_1=coef_1, coef_2=coef_2)
+    fig, ax = plot_generic(x_train, y_train,x_cal, y_cal,coef_1=coef_1, coef_2=coef_2)
     st.pyplot(fig)
 
     # Train the model
@@ -50,40 +43,15 @@ def main():
     x_test = torch.linspace(-.5, 1.5, 3000)[:, None] 
     net = MLP(hidden_dim=hidden_dim, n_hidden_layers=n_hidden_layers)
     net = train(net, (x_train, y_train), epochs=epochs)
-    graph = make_dot(y, params=dict(net.named_parameters()))
 
-# Display the graph using streamlit
-    st.graphviz_chart(graph)
-    # Make predictions and plot the results
     y_preds = net(x_test).clone().detach().numpy()
 
 
     # Display the plot with the true function and observations
     st.header("Prediction Visualization")
-    fig, ax = plot_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
+    fig, ax = plot_predictions(x_train, y_train,x_cal, y_cal,x_test, y_preds,coef_1, coef_2)
     st.pyplot(fig)
 
-    # ensemble_size = 5
-    # ensemble = [MLP(hidden_dim=30, n_hidden_layers=2) for _ in range(ensemble_size)]
-    # for net in ensemble:
-    #     train(net, (x_train, y_train))
-    # y_preds = [np.array(net(x_test).clone().detach().numpy()) for net in ensemble]
-    # fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    # st.pyplot(fig)
-    # fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    # st.pyplot(fig)
-
-    # net_dropout = MLP(hidden_dim=30, n_hidden_layers=2, use_dropout=True)
-    # net_dropout = train(net_dropout, (x_train, y_train))
-    # n_dropout_samples = 100
-
-    # # compute predictions, resampling dropout mask for each forward pass
-    # y_preds = [net_dropout(x_test).clone().detach().numpy() for _ in range(n_dropout_samples)]
-    # y_preds = np.array(y_preds)
-    # fig, ax = plot_multiple_predictions(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    # st.pyplot(fig)
-    # fig, ax = plot_uncertainty_bands(x_train, y_train,x_test, y_preds,coef_1, coef_2)
-    # st.pyplot(fig)
     x_test = torch.linspace(-.5, 1.5, 1000)[:, None]
     y_preds = net(x_test).clone().detach().numpy()
     y_cal_preds = net(x_cal).clone().detach()
@@ -103,11 +71,56 @@ def main():
     plt.ylabel("Y", fontsize=30)
 
     ax.plot(x_true, y_true, 'b-', linewidth=3, label="true function")
-    ax.plot(x, y, 'ko', markersize=4, label="observations")
+    ax.plot(x_train, y_train, 'go', markersize=4, label="training data")
+    ax.plot(x_cal, y_cal, 'ro', markersize=4, label="cal data")
     ax.plot(x_test, y_preds, '-', linewidth=3, color="#408765", label="predictive mean")
     ax.fill_between(x_test.ravel(), y_preds - q, y_preds + q, alpha=0.6, color='#86cfac', zorder=5)
 
     plt.legend(loc=4, fontsize=15, frameon=False);
     st.pyplot(fig)
+
+    st.title("Conformal Predictions in Classification")
+    
+    st.write("In Classification, our model outputs are now class probabilities and prediction sets are discrete. This is in contrast to the continuous uncertainty bands we obtained before, and influences how we design the comparison of true and predicted classes to obtain our conformity scores. When the predictive uncertainty is high, size of the prediction set will be higher.")
+    st.write("We will use the Cifar Dataset for this demo. We split the training samples into two parts: training set and calibration set. We take the first 45k images in training set and 5k images in the calibration set.")
+    
+    X_test, y_test, X_calib, y_calib = get_data()
+    
+    # net = CNN_flex(input_channels=3, num_conv_layers=3, conv_channels=32, num_fc_layers=2, fc_channels=64, num_classes=10)
+    net = CNN()
+    net.load_state_dict(torch.load("cifar/cifar_model", map_location=torch.device("cpu")))
+    st.write("Test accuracy of current model: ", get_test_accuracy(X_test, y_test, net))
+    
+    st.write("The choice of how to calculate conformity scores is a modelling decision. We will use a simple softmax based method:")
+    score_func = r"s_i=1-\hat{\pi}_{x_i}(y_i)"
+    st.latex(score_func)
+    st.write("which is 1 minus the softmax output of the true class. The prediction set is then constructed as :")
+    pred_set_latex = r"\hat{C}(x_{n+1})=\{y'\in K:\hat{\pi}_{x_{n+1}}(y') \ge 1-\hat{q}\}"
+    st.latex(pred_set_latex)
+    st.write("which collects all the classes for which the softmax score is above the threshold 1-q.")
+    st.write("q is given by: ")
+    st.latex(r"\left\lceil \frac{(n+1)(1-\alpha)}{n} \right\rceil")
+
+    scores = get_scores(net, (X_calib, y_calib))
+    alpha = st.slider("Select a value for alpha:", min_value=0.001, max_value=1.0, step=0.001, value=0.04)
+    q = quantile(scores, alpha)
+    fig, ax = plot_scores_quantile(scores, q, alpha)
+    st.pyplot(fig)
+    
+    st.write("Conformal quantile(1-q) of the calibration data is: {:.3f}".format(1-q))
+    st.write("This means that for some test sample (x, y), the prediction set is constructed by collecting all classes for which the softmax score is above the threshold {:.3f}.".format(1-q))
+    
+    
+    st.write("Example: ")
+    
+    test_img_index = st.slider("Choose Image:", min_value=0, max_value=1000, step=1, value=628)
+    sample_test_img = X_test[test_img_index]
+    pred_sets = get_pred_sets(net, (X_test, y_test), q, alpha)
+    fig, ax, pred, pred_str = get_test_preds_and_smx(X_test, test_img_index, pred_sets, net, q, alpha)
+    st.pyplot(fig)
+    st.write("Prediction Set for this image: ", pred_str)
+    
+    st.write("The average size of prediction sets for the test images is {:.3f}".format(mean_set_size(pred_sets)))
+
 if __name__ == "__main__":
     main()
